@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { AndroidApp, DowntimeSchedule, AppCategory, AppSettings } from './types/app';
-import { INITIAL_ANDROID_APPS } from './data/defaultApps';
+import { INITIAL_ANDROID_APPS, SUGGESTED_ANDROID_APPS } from './data/defaultApps';
 import { Navbar } from './components/Navbar';
 import { AppCard } from './components/AppCard';
 import { QuickLockModal } from './components/QuickLockModal';
@@ -40,13 +40,15 @@ import {
   AlertCircle,
   HelpCircle,
   Scan,
-  Zap
+  Zap,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const STORAGE_KEY_APPS = 'applocker_apps_v1';
-const STORAGE_KEY_SCHEDULES = 'applocker_schedules_v1';
-const STORAGE_KEY_SETTINGS = 'applocker_settings_v1';
+const STORAGE_KEY_APPS = 'applocker_user_apps_v3';
+const STORAGE_KEY_SCHEDULES = 'applocker_schedules_v3';
+const STORAGE_KEY_SETTINGS = 'applocker_settings_v3';
 
 const DEFAULT_SCHEDULES: DowntimeSchedule[] = [
   {
@@ -55,17 +57,8 @@ const DEFAULT_SCHEDULES: DowntimeSchedule[] = [
     days: [0, 1, 2, 3, 4, 5, 6],
     startTime: '22:30',
     endTime: '07:00',
-    targetAppIds: ['instagram', 'youtube', 'bgmi', 'tiktok_reels', 'netflix'],
+    targetAppIds: [],
     enabled: true,
-  },
-  {
-    id: 'study_focus_default',
-    title: 'Study & Deep Work Focus (पढ़ाई का समय)',
-    days: [1, 2, 3, 4, 5, 6],
-    startTime: '14:00',
-    endTime: '17:00',
-    targetAppIds: ['instagram', 'bgmi', 'freefire', 'tiktok_reels', 'x_twitter'],
-    enabled: false,
   },
 ];
 
@@ -215,12 +208,14 @@ export default function App() {
 
   // Actions
   const handleToggleLock = (appId: string) => {
+    let targetToEnforce: AndroidApp | null = null;
     setApps((prev) =>
       prev.map((app) => {
         if (app.id === appId) {
           const willBlock = !app.isBlocked;
           if (willBlock) {
             soundEffects.playLock();
+            targetToEnforce = { ...app, isBlocked: true };
           } else {
             soundEffects.playUnlock();
           }
@@ -233,6 +228,9 @@ export default function App() {
         return app;
       })
     );
+    if (targetToEnforce) {
+      setEnforceTargetApp(targetToEnforce);
+    }
   };
 
   const handleUnlockEarly = (appId: string) => {
@@ -269,10 +267,14 @@ export default function App() {
 
   const handleQuickLockSingle = (appId: string, durationMinutes: number) => {
     const lockUntilTime = Date.now() + durationMinutes * 60 * 1000;
+    const target = apps.find((a) => a.id === appId);
     setApps((prev) =>
       prev.map((app) => (app.id === appId ? { ...app, isBlocked: true, lockUntil: lockUntilTime } : app))
     );
     soundEffects.playLock();
+    if (target) {
+      setEnforceTargetApp({ ...target, isBlocked: true, lockUntil: lockUntilTime });
+    }
   };
 
   const handleStartBatchLockdown = (selectedAppIds: string[], durationMinutes: number, title: string) => {
@@ -620,12 +622,90 @@ export default function App() {
                 >
                   {language === 'hi' ? 'सब खोलें' : 'Unlock All'}
                 </button>
+                {apps.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setApps([]);
+                      soundEffects.playUnlock();
+                    }}
+                    className="flex-1 sm:flex-none flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700/60 text-xs font-medium transition"
+                    title="Remove all apps from dashboard"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>{language === 'hi' ? 'खाली करें' : 'Clear'}</span>
+                  </button>
+                )}
               </div>
 
             </div>
 
-            {/* Apps Grid */}
-            {filteredApps.length === 0 ? (
+            {/* Apps Grid or Zero-Apps Onboarding Wizard */}
+            {apps.length === 0 ? (
+              <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-700/80 shadow-2xl text-center space-y-5 max-w-2xl mx-auto my-4 animate-in fade-in duration-300">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-slate-950 mx-auto shadow-xl shadow-cyan-950/50">
+                  <Smartphone className="w-8 h-8" />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold tracking-wide uppercase">
+                    {language === 'hi' ? 'शून्य डिफ़ॉल्ट ऐप्स — सिर्फ आपके असली ऐप्स' : 'Zero Fake Apps — Pure Real Device Mode'}
+                  </span>
+                  <h3 className="font-extrabold text-xl sm:text-2xl text-white">
+                    {language === 'hi' ? 'आपके फोन में अभी कौन-से ऐप्स हैं?' : 'Select Apps Present on Your Phone'}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                    {language === 'hi' 
+                      ? 'यहाँ कोई भी गैर-ज़रूरी ऐप पहले से तय नहीं है। नीचे से वही ऐप्स चुनें जो सच में आपके फोन में मौजूद हैं:' 
+                      : 'No predefined dummy apps. Click below to add only the real apps currently installed on your mobile:'}
+                  </p>
+                </div>
+
+                {/* Quick Add Chips */}
+                <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto py-2">
+                  {SUGGESTED_ANDROID_APPS.map((item) => (
+                    <button
+                      key={item.packageName}
+                      onClick={() => {
+                        handleAddApp({
+                          id: item.packageName.replace(/[^a-zA-Z0-9]/g, '_'),
+                          name: item.name,
+                          packageName: item.packageName,
+                          category: item.category,
+                          iconBg: item.iconBg,
+                          iconName: item.iconName,
+                          isBlocked: false,
+                          dailyLimitMinutes: item.dailyLimitMinutes,
+                          usedTodayMinutes: 0,
+                          lockUntil: null,
+                        });
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition cursor-pointer active:scale-95 shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => setShowScannerModal(true)}
+                    className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-950/40 hover:opacity-95 transition cursor-pointer flex items-center gap-2"
+                  >
+                    <Scan className="w-4 h-4" />
+                    <span>{language === 'hi' ? '📲 पूरी चेकलिस्ट / स्कैनर खोलें' : 'Open Full App Scanner'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowAddAppModal(true)}
+                    className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs border border-slate-700 transition cursor-pointer flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4 text-cyan-400" />
+                    <span>{language === 'hi' ? 'नाम लिखकर नया ऐप जोड़ें' : 'Add Any Custom App'}</span>
+                  </button>
+                </div>
+              </div>
+            ) : filteredApps.length === 0 ? (
               <div className="p-10 rounded-2xl bg-slate-900/40 border border-slate-800 text-center space-y-2">
                 <Smartphone className="w-8 h-8 text-slate-600 mx-auto" />
                 <p className="text-sm font-semibold text-slate-300">
