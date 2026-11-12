@@ -15,6 +15,8 @@ export interface AndroidApp {
   lockUntil: number | null; // timestamp ms
   lockReason?: string;
   custom?: boolean;
+  isRealFrozen?: boolean; // OS level disabled/frozen
+  lastFrozenAt?: number;
 }
 
 export interface FocusSession {
@@ -45,4 +47,7 @@ export interface AppSettings {
   enableSound: boolean;
   language: 'hi' | 'en';
   requireMathPuzzleToUnlock: boolean;
+  enforcementMethod: 'macrodroid_accessibility' | 'adb_shizuku' | 'pwa_watchdog';
+  deviceModel?: string;
+  isDevicePaired: boolean;
 }

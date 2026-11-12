@@ -20,6 +20,7 @@ interface Props {
   onQuickLock: (appId: string, durationMinutes: number) => void;
   onUnlockEarly: (appId: string) => void;
   onTestLaunch: (app: AndroidApp) => void;
+  onOpenRealEnforce: (app: AndroidApp) => void;
   onDeleteCustomApp?: (appId: string) => void;
   language: 'hi' | 'en';
 }
@@ -31,6 +32,7 @@ export const AppCard: React.FC<Props> = ({
   onQuickLock,
   onUnlockEarly,
   onTestLaunch,
+  onOpenRealEnforce,
   onDeleteCustomApp,
   language,
 }) => {
@@ -270,15 +272,28 @@ export const AppCard: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Action icons: Simulate Android Launch & Delete */}
+        {/* Action icons: Real Block Enforce, Simulate Android Launch & Delete */}
         <div className="flex items-center gap-1.5">
           <button
+            onClick={() => onOpenRealEnforce(app)}
+            className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition border ${
+              isCurrentlyBlocked
+                ? 'bg-rose-500/15 text-rose-300 border-rose-500/40 hover:bg-rose-500/25'
+                : 'bg-slate-800 text-cyan-400 border-slate-700 hover:bg-slate-750'
+            }`}
+            title="Real Android OS level block instructions & setup"
+          >
+            <Lock className="w-3 h-3" />
+            <span>{language === 'hi' ? 'असली ब्लॉक' : 'Real Block'}</span>
+          </button>
+
+          <button
             onClick={() => onTestLaunch(app)}
-            className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition"
+            className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition"
             title="Simulate opening this app on Android"
           >
             <Play className="w-3 h-3" />
-            <span>{language === 'hi' ? 'टेस्ट करें' : 'Test Launch'}</span>
+            <span className="hidden sm:inline">{language === 'hi' ? 'टेस्ट करें' : 'Test'}</span>
           </button>
 
           {app.custom && onDeleteCustomApp && (

@@ -17,6 +17,8 @@ import { AndroidSyncModal } from './components/AndroidSyncModal';
 import { PinModal } from './components/PinModal';
 import { AnalyticsTab } from './components/AnalyticsTab';
 import { OfflineBanner } from './components/OfflineBanner';
+import { AppScannerModal } from './components/AppScannerModal';
+import { RealDeviceEnforcerModal } from './components/RealDeviceEnforcerModal';
 import { soundEffects } from './utils/audio';
 import { t } from './utils/translations';
 import { 
@@ -36,7 +38,9 @@ import {
   Flame, 
   Clock, 
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Scan,
+  Zap
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -72,6 +76,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   enableSound: true,
   language: 'hi', // Hindi default as requested by user
   requireMathPuzzleToUnlock: true,
+  enforcementMethod: 'macrodroid_accessibility',
+  isDevicePaired: false,
 };
 
 export default function App() {
@@ -114,6 +120,8 @@ export default function App() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showAddAppModal, setShowAddAppModal] = useState(false);
   const [showSyncModal, setShowSyncModal] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [enforceTargetApp, setEnforceTargetApp] = useState<AndroidApp | null>(null);
   const [simulateApp, setSimulateApp] = useState<AndroidApp | null>(null);
   const [pendingUnlockAppId, setPendingUnlockAppId] = useState<string | null>(null);
 
@@ -491,21 +499,57 @@ export default function App() {
             </button>
           </div>
 
-          {/* Quick Add Custom App Button */}
+          {/* Quick Add Custom App & Scan Phone App Buttons */}
           {activeTab === 'apps' && (
-            <button
-              onClick={() => setShowAddAppModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 text-xs font-semibold shrink-0 transition"
-            >
-              <Plus className="w-3.5 h-3.5 text-cyan-400" />
-              <span>{language === 'hi' ? '+ नया ऐप जोड़ें' : '+ Add App'}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowScannerModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 hover:from-emerald-500/30 hover:to-cyan-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition cursor-pointer"
+                title="Select or scan apps present on your phone"
+              >
+                <Scan className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{language === 'hi' ? '📲 फोन के ऐप्स चुनें' : '📲 Scan My Phone'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowAddAppModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 text-xs font-semibold transition"
+              >
+                <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{language === 'hi' ? '+ नया ऐप' : '+ Add App'}</span>
+              </button>
+            </div>
           )}
         </div>
 
         {/* Tab 1: All Android Apps Control */}
         {activeTab === 'apps' && (
           <div className="space-y-4">
+            
+            {/* Real Enforcement Guide Banner */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900/90 to-rose-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-white flex items-center gap-1.5">
+                    <span>{language === 'hi' ? 'फोन पर सच में ऐप्स बंद रखने के लिए (Real Android Block):' : 'Real Android OS Blocking:'}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-300">
+                    {language === 'hi'
+                      ? 'PWA में लॉक करने के बाद, ऐप के नीचे "असली ब्लॉक" बटन दबाएं ताकि MacroDroid या ADB से ऐप छूने पर भी न खुले!'
+                      : 'After setting timer, click "Real Block" on any app card to enable MacroDroid auto-close or ADB freeze.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowScannerModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-semibold whitespace-nowrap transition cursor-pointer self-end sm:self-center"
+              >
+                {language === 'hi' ? 'अनावश्यक ऐप्स हटाएं' : 'Filter My Apps'}
+              </button>
+            </div>
             
             {/* Search & Filters Header */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
@@ -602,6 +646,7 @@ export default function App() {
                     onQuickLock={handleQuickLockSingle}
                     onUnlockEarly={handleUnlockEarly}
                     onTestLaunch={(app) => setSimulateApp(app)}
+                    onOpenRealEnforce={(app) => setEnforceTargetApp(app)}
                     onDeleteCustomApp={handleDeleteCustomApp}
                     language={language}
                   />
@@ -774,6 +819,25 @@ export default function App() {
         }}
         masterPin={settings.pinCode}
         requireMath={settings.requireMathPuzzleToUnlock}
+        language={language}
+      />
+
+      {/* App Scanner / Selector Modal */}
+      <AppScannerModal
+        isOpen={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        currentApps={apps}
+        onApplyAppsList={(newAppsList) => {
+          setApps(newAppsList);
+        }}
+        language={language}
+      />
+
+      {/* Real Device Enforcement Modal */}
+      <RealDeviceEnforcerModal
+        isOpen={!!enforceTargetApp}
+        onClose={() => setEnforceTargetApp(null)}
+        targetApp={enforceTargetApp}
         language={language}
       />
 
