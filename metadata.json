@@ -1,0 +1,6 @@
+{
+  "name": "AppLocker Pro - Android App Controller",
+  "description": "Progressive Web App to schedule, limit, and lock Android apps with focus timers, downtime schedules, and strict digital detox controls.",
+  "requestFramePermissions": ["notifications"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
